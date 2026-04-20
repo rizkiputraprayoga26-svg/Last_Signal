@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Last Signal</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body,html{width:100%;height:100%;overflow:hidden;background:#000;color:#fca5a5;
+  font-family:'Share Tech Mono','Courier New',monospace;user-select:none;touch-action:none;}
+canvas{display:block;position:absolute;top:0;left:0;z-index:1;}
+#blood-overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+  z-index:40;opacity:0;transition:opacity 0.4s ease-out;
+  background-image:radial-gradient(circle at 5% 5%,rgba(139,0,0,.8) 0%,transparent 25%),
+    radial-gradient(circle at 95% 15%,rgba(139,0,0,.7) 0%,transparent 20%),
+    radial-gradient(circle at 50% 95%,rgba(139,0,0,.6) 0%,transparent 30%),
+    radial-gradient(circle at 20% 80%,rgba(139,0,0,.75) 0%,transparent 25%);filter:blur(5px);}
+#vignette{position:absolute;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(circle,transparent 20%,rgba(40,0,0,.95) 100%);pointer-events:none;z-index:5;}
+#warning-overlay{position:absolute;top:0;left:0;width:100%;height:100%;
+  background:rgba(255,0,0,.2);z-index:15;display:none;pointer-events:none;animation:pulse-danger .4s infinite;}
+@keyframes pulse-danger{0%,100%{opacity:0}50%{opacity:1}}
+/* death screen flash */
+#death-flash{position:absolute;top:0;left:0;width:100%;height:100%;
+  background:#fff;z-index:200;pointer-events:none;opacity:0;display:none;}
+.screen{position:absolute;top:0;left:0;width:100%;height:100%;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:50;pointer-events:auto;}
+.screen.hidden{display:none!important;}
+/* MAIN MENU */
+#screen-mainmenu{background:transparent;}
+#menu-title-wrap{text-align:center;margin-bottom:40px;}
+#menu-title{font-size:clamp(2rem,10vw,3.5rem);letter-spacing:clamp(6px,3vw,18px);
+  color:#ff0000;text-shadow:0 0 30px #f00,0 0 60px #800;animation:title-pulse 3s ease-in-out infinite;}
+@keyframes title-pulse{0%,100%{text-shadow:0 0 20px #f00,0 0 50px #700}
+  50%{text-shadow:0 0 40px #f00,0 0 80px #a00,0 0 120px #500}}
+#menu-sub{font-size:.6rem;color:#444;letter-spacing:3px;margin-top:6px;}
+#menu-tagline{font-size:.55rem;color:#2a0000;letter-spacing:2px;margin-top:3px;}
+.menu-btn-wrap{display:flex;flex-direction:column;gap:16px;width:220px;}
+.menu-btn{background:rgba(15,0,0,.95);color:#ff4444;border:1px solid rgba(255,0,0,.5);
+  padding:16px;font-family:inherit;font-size:.85rem;letter-spacing:4px;cursor:pointer;
+  text-transform:uppercase;transition:all .2s;position:relative;overflow:hidden;pointer-events:auto;}
+.menu-btn::before{content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,0,0,.1),transparent);transition:left .3s;}
+.menu-btn:hover::before{left:100%;}
+.menu-btn:hover{background:rgba(80,0,0,.9);border-color:rgba(255,0,0,.9);
+  box-shadow:0 0 20px rgba(255,0,0,.4);color:#fff;}
+#credit{position:absolute;bottom:16px;left:18px;font-size:.6rem;color:#3a0000;letter-spacing:1px;line-height:1.8;}
+#credit strong{color:#660000;font-size:.65rem;letter-spacing:2px;}
+
+/* LEVEL SELECT */
+#screen-levelselect{background:rgba(0,0,0,.97);}
+.ls-title{font-size:.7rem;letter-spacing:5px;color:#ff2222;margin-bottom:8px;}
+.ls-sub{font-size:.5rem;color:#400;letter-spacing:2px;margin-bottom:28px;}
+.diff-wrap{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+.diff-card{width:130px;background:rgba(10,0,0,.95);border:1px solid rgba(255,0,0,.3);
+  padding:20px 12px;text-align:center;cursor:pointer;transition:all .25s;position:relative;pointer-events:auto;}
+.diff-card:hover{border-color:#f00;box-shadow:0 0 25px rgba(255,0,0,.3);transform:translateY(-2px);}
+.diff-card .diff-icon{font-size:1.4rem;margin-bottom:8px;display:block;}
+.diff-card .diff-name{font-size:.7rem;letter-spacing:3px;color:#ff4444;display:block;margin-bottom:5px;}
+.diff-card .diff-desc{font-size:.45rem;color:#500;letter-spacing:1px;line-height:1.5;}
+.diff-card.hard .diff-name{color:#ff0000;}.diff-card.hard{border-color:rgba(255,0,0,.5);}
+.diff-card.veryeasy .diff-name{color:#44aa44;}.diff-card.veryeasy{border-color:rgba(0,200,0,.3);}
+.diff-card.veryeasy:hover{border-color:#0f0;box-shadow:0 0 25px rgba(0,200,0,.2);}
+.back-btn{margin-top:24px;font-size:.55rem;color:#400;letter-spacing:3px;cursor:pointer;padding:10px;}
+.back-btn:hover{color:#f00;}
+/* AWARDS */
+#screen-awards{background:rgba(0,0,0,.98);overflow:hidden;}
+#awards-inner{width:90%;max-width:500px;max-height:85vh;overflow-y:auto;
+  scrollbar-width:thin;scrollbar-color:#400 #000;}
+#awards-inner::-webkit-scrollbar{width:4px;}
+#awards-inner::-webkit-scrollbar-track{background:#000;}
+#awards-inner::-webkit-scrollbar-thumb{background:#400;}
+.aw-title{font-size:.7rem;letter-spacing:5px;color:#ff2222;margin-bottom:6px;text-align:center;}
+.aw-sub{font-size:.5rem;color:#400;letter-spacing:2px;margin-bottom:20px;text-align:center;}
+.aw-legend{display:flex;gap:16px;margin-bottom:14px;font-size:.5rem;justify-content:center;}
+.aw-legend span{display:flex;align-items:center;gap:5px;}
+.dot-green{width:8px;height:8px;border-radius:50%;background:#0f0;display:inline-block;}
+.dot-grey{width:8px;height:8px;border-radius:50%;background:#333;display:inline-block;}
+.aw-section{margin-bottom:14px;}
+.aw-section-title{font-size:.55rem;color:#600;letter-spacing:2px;border-bottom:1px solid #200;
+  padding-bottom:4px;margin-bottom:8px;}
+.aw-item{display:flex;align-items:flex-start;gap:10px;padding:6px 4px;border-bottom:1px solid #100;
+  font-size:.6rem;color:#555;line-height:1.4;transition:color .2s;}
+.aw-item.answered{color:#4f4;}
+.aw-item .aw-dot{flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:3px;}
+.aw-item.answered .aw-dot{background:#0f0;box-shadow:0 0 6px #0f0;}
+.aw-item:not(.answered) .aw-dot{background:#222;border:1px solid #333;}
+.aw-progress{font-size:.5rem;color:#444;margin-bottom:16px;text-align:center;}
+.aw-progress span{color:#0f0;}
+/* IN-GAME */
+#ui-layer{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;
+  display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:20;}
+.panel{background:rgba(15,0,0,.96);border:1px solid rgba(255,0,0,.4);padding:25px;
+  text-align:center;pointer-events:auto;width:85%;max-width:400px;
+  backdrop-filter:blur(10px);box-shadow:0 0 50px rgba(255,0,0,.3);}
+#panel-quiz{position:absolute;bottom:30px;width:90%;max-width:450px;}
+.quiz-option{display:block;width:100%;margin:8px 0;background:rgba(40,0,0,.7);color:#fff;
+  border:1px solid rgba(255,0,0,.3);padding:14px;cursor:pointer;text-align:left;
+  font-size:.85rem;transition:background .2s;font-family:inherit;}
+.quiz-option:hover{background:rgba(100,0,0,.7);}
+#hud{position:absolute;top:0;left:0;width:100%;display:flex;justify-content:space-between;
+  padding:15px 30px;box-sizing:border-box;pointer-events:none;z-index:30;
+  font-size:12px;color:#ff4444;background:linear-gradient(to bottom,rgba(255,0,0,.15),transparent);}
+#boss-health-container{position:absolute;top:50px;width:100%;
+  display:flex;flex-direction:column;align-items:center;z-index:25;}
+.hp-bar-bg{width:280px;height:12px;background:rgba(30,0,0,.8);border:1px solid #900;
+  margin-top:5px;position:relative;overflow:hidden;}
+#hp-bar-fill{width:100%;height:100%;background:#ff0000;transition:width .4s;box-shadow:0 0 20px #f00;}
+#hp-text{position:absolute;width:100%;text-align:center;top:-18px;font-size:11px;font-weight:bold;color:#f00;}
+.btn{background:#a00;color:#fff;border:none;padding:12px 24px;font-weight:800;
+  letter-spacing:3px;cursor:pointer;text-transform:uppercase;
+  box-shadow:0 0 15px rgba(255,0,0,.5);font-family:inherit;}
+/* STORY */
+#story-container{position:absolute;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,.98);display:flex;justify-content:center;align-items:center;
+  z-index:100;pointer-events:auto;cursor:pointer;}
+#story-container::before{content:'';position:absolute;top:0;left:0;width:100%;height:100%;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.15) 2px,rgba(0,0,0,.15) 4px);
+  pointer-events:none;z-index:1;}
+#story-text{color:#ff2222;font-size:1.05rem;line-height:1.9;text-align:center;max-width:82%;
+  letter-spacing:1.5px;text-shadow:0 0 12px rgba(255,0,0,.5);
+  position:relative;z-index:2;animation:glitch-flicker 6s infinite;}
+/* SECRET ENDING — greenish alien tone */
+#story-container.secret-ending #story-text{color:#00ff88;text-shadow:0 0 12px rgba(0,255,100,.5);}
+#story-container.secret-ending{background:rgba(0,10,0,.98);}
+#story-container.secret-ending::before{background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,20,0,.15) 2px,rgba(0,20,0,.15) 4px);}
+#story-tap-hint{position:absolute;bottom:40px;font-size:.6rem;color:#800;
+  letter-spacing:4px;animation:pulse-hint 2s infinite;z-index:2;}
+@keyframes glitch-flicker{0%,94%,100%{opacity:1;transform:none}
+  95%{opacity:.8;transform:translateX(2px)}97%{opacity:.9;transform:translateX(-1px)}}
+@keyframes pulse-hint{0%,100%{opacity:.3}50%{opacity:1}}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="warning-overlay"></div>
+<div id="blood-overlay"></div>
+<div id="death-flash"></div>
+
+<!-- MAIN MENU -->
+<div id="screen-mainmenu" class="screen">
+  <div id="menu-title-wrap">
+    <div id="menu-title">LAST SIGNAL</div>
+    <div id="menu-sub">V.9.0 DECEPTION PROTOCOL</div>
+    <div id="menu-tagline">SEKTOR-7 // TRANSMISI TERAKHIR // TAHUN 2187</div>
+  </div>
+  <div class="menu-btn-wrap">
+    <button class="menu-btn" id="btn-start">▶ &nbsp;MULAI</button>
+    <button class="menu-btn" id="btn-awards">◈ &nbsp;AWARDS</button>
+  </div>
+  <div id="credit"><strong>DIBUAT OLEH</strong><br>Yoga &amp; Fahmi</div>
+</div>
+
+</div>
+
+<!-- AWARDS -->
+<div id="screen-awards" class="screen hidden">
+  <div id="awards-inner">
+    <div class="aw-title">// BANK SOAL //</div>
+    <div class="aw-sub">Lacak kemajuan kognitifmu, Operator.</div>
+    <div class="aw-legend">
+      <span><span class="dot-green"></span> Sudah Dijawab</span>
+      <span><span class="dot-grey"></span> Belum Dijawab</span>
+    </div>
+    <div class="aw-progress">Progress: <span id="aw-count">0</span> / <span id="aw-total">0</span></div>
+    <div id="awards-list"></div>
+  </div>
+  <div class="back-btn" id="btn-awardsback">← KEMBALI</div>
+</div>
+
+<!-- STORY -->
+<div id="story-container" class="hidden">
+  <div id="story-text"></div>
+  <div id="story-tap-hint">[ SENTUH UNTUK MELANJUTKAN ]</div>
+</div>
+
+<!-- IN-GAME HUD -->
+<div id="hud" class="hidden">
+  <div>INTEGRITAS_SISTEM: <span id="hp-val">100</span>%</div>
+  <div>STABILITAS: <span id="timer-val">0</span></div>
+</div>
+<div id="boss-health-container" class="hidden">
+  <div id="hp-text">ENTITAS_CRIMSON // 100/100</div>
+  <div class="hp-bar-bg"><div id="hp-bar-fill"></div></div>
+  <div id="boss-status" style="font-size:8px;color:#f44;margin-top:5px;letter-spacing:2px;">STATUS: MENCARI_TITIK_LEMAH</div>
+</div>
+<div id="ui-layer">
+  <div id="panel-quiz" class="panel hidden">
+    <div id="quiz-header" style="color:#ff4444;font-size:.7rem;font-weight:bold;margin-bottom:8px;text-align:left;">SISTEM_KEAMANAN_AKTIF...</div>
+    <p id="quiz-question" style="color:#fca5a5;font-size:.9rem;margin-bottom:12px;border-bottom:1px solid #600;padding-bottom:10px;text-align:left;line-height:1.4;"></p>
+    <div id="quiz-options"></div>
+  </div>
+  <div id="panel-result" class="panel hidden">
+    <h1 id="result-title" style="color:#f00;letter-spacing:5px;">STATUS</h1>
+    <p id="result-msg" style="font-size:12px;margin-bottom:30px;color:#fff;line-height:1.7;"></p>
+    <button class="btn" id="result-next-btn">LANJUTKAN</button>
+  </div>
+</div>
+
+<canvas id="canvas"></canvas>
+<script>
+// ════════════════════════════════════════════════════════════
+//  AUDIO ENGINE
+// ════════════════════════════════════════════════════════════
+const AudioMgr={
+  ctx:null,masterGain:null,isMusicPlaying:false,_engineRunning:false,
+  musicNodes:[],ambientNodes:[],
+  init(){
+    if(this.ctx)return;
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    this.masterGain=this.ctx.createGain();
+    this.masterGain.gain.setValueAtTime(.55,this.ctx.currentTime);
+    this.masterGain.connect(this.ctx.destination);
+  },
+  resume(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();},
+  _osc(type,freq,gainVal,dur,delay=0,dest){
+    const t=this.ctx.currentTime+delay;
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,t);
+    g.gain.setValueAtTime(Math.max(gainVal,.0001),t);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g);g.connect(dest||this.masterGain);
+    o.start(t);o.stop(t+dur+.01);return o;
+  },
+  _noise(dur,filterFreq,gainVal,delay=0,type='lowpass'){
+    const t=this.ctx.currentTime+delay,sr=this.ctx.sampleRate;
+    const buf=this.ctx.createBuffer(1,Math.ceil(sr*dur),sr);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const src=this.ctx.createBufferSource();src.buffer=buf;
+    const filt=this.ctx.createBiquadFilter();filt.type=type;filt.frequency.setValueAtTime(filterFreq,t);
+    const g=this.ctx.createGain();g.gain.setValueAtTime(Math.max(gainVal,.0001),t);
+    g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    src.connect(filt);filt.connect(g);g.connect(this.masterGain);
+    src.start(t);src.stop(t+dur+.01);
+  },
+  play(type){
+    if(!this.ctx)return;this.resume();
+    try{({
+      'shoot':()=>this._sfxLaser(),
+      'hit':()=>this._sfxImpact(),
+      'boss-charge':()=>this._sfxVoidCharge(),
+      'correct':()=>this._sfxCorrect(),
+      'wrong':()=>this._sfxWrong(),
+      'shield':()=>this._sfxShield(),
+      'pickup':()=>this._osc('sine',700,.12,.1),
+      'drop-bad':()=>{this._osc('sine',60,.35,.2);this._noise(.15,350,.2);},
+      'whoosh':()=>this._noise(.18,4000,.1),
+      'menu-click':()=>{this._osc('sine',440,.15,.08);this._osc('sine',660,.1,.06,.04);},
+      'lightning':()=>this._sfxLightning(),
+      'death-scream':()=>this._sfxDeathScream(),
+    }[type]||(() => {}))();}catch(e){}
+  },
+
+  // ─ SFX ─────────────────────────────────────────────────────
+  _sfxLaser(){
+    const t=this.ctx.currentTime,o=this.ctx.createOscillator(),ws=this.ctx.createWaveShaper(),g=this.ctx.createGain();
+    const curve=new Float32Array(512);
+    for(let i=0;i<512;i++){const x=(i*2/512)-1;curve[i]=(Math.PI+280)*x/(Math.PI+280*Math.abs(x));}
+    ws.curve=curve;o.type='sawtooth';
+    o.frequency.setValueAtTime(2200,t);o.frequency.exponentialRampToValueAtTime(75,t+.2);
+    g.gain.setValueAtTime(.45,t);g.gain.exponentialRampToValueAtTime(.0001,t+.2);
+    o.connect(ws);ws.connect(g);g.connect(this.masterGain);o.start(t);o.stop(t+.22);
+    this._osc('sine',55,.55,.18);
+  },
+  _sfxImpact(){
+    this._noise(.35,700,.85);
+    const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type='sine';o.frequency.setValueAtTime(190,t);o.frequency.exponentialRampToValueAtTime(30,t+.28);
+    g.gain.setValueAtTime(.75,t);g.gain.exponentialRampToValueAtTime(.0001,t+.28);
+    o.connect(g);g.connect(this.masterGain);o.start(t);o.stop(t+.3);
+    this._noise(.06,6000,.45);
+  },
+  _sfxVoidCharge(){
+    const t=this.ctx.currentTime;
+    [{type:'sawtooth',f0:28,f1:230,g0:.0001,g1:.32,dur:3.1},
+     {type:'square',f0:70,f1:1600,g0:.0001,g1:.18,dur:1.7,delay:1.4}].forEach(p=>{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain(),st=t+(p.delay||0);
+      o.type=p.type;o.frequency.setValueAtTime(p.f0,st);o.frequency.exponentialRampToValueAtTime(p.f1,st+p.dur);
+      g.gain.setValueAtTime(p.g0,st);g.gain.linearRampToValueAtTime(p.g1,st+p.dur*.8);
+      g.gain.exponentialRampToValueAtTime(.0001,st+p.dur+.1);
+      o.connect(g);g.connect(this.masterGain);o.start(st);o.stop(st+p.dur+.15);
+    });
+    this._noise(3.2,1500,.15);
+  },
+  _sfxCorrect(){[880,1320,1760].forEach((f,i)=>this._osc('sine',f,.16,.38,i*.065));},
+  _sfxWrong(){
+    this._osc('square',118,.28,.5);this._osc('sawtooth',112,.22,.5);
+    this._noise(.5,2200,.28);[0,.13,.26].forEach(d=>this._osc('square',900,.14,.07,d));
+  },
+  _sfxShield(){
+    const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type='sine';o.frequency.setValueAtTime(380,t);
+    o.frequency.exponentialRampToValueAtTime(2600,t+.1);o.frequency.exponentialRampToValueAtTime(820,t+.55);
+    g.gain.setValueAtTime(.5,t);g.gain.exponentialRampToValueAtTime(.0001,t+.72);
+    o.connect(g);g.connect(this.masterGain);o.start(t);o.stop(t+.75);
+    this._osc('sine',820,.08,.7);this._osc('sine',1640,.05,.7);
+  },
+
+  // ─ LIGHTNING crack — sharp static burst ─
+  _sfxLightning(){
+    const t=this.ctx.currentTime;
+    // Ultra-short white noise crack
+    this._noise(.04,8000,.9);
+    // Low thunder follow
+    const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+    o.type='sawtooth';
+    o.frequency.setValueAtTime(180,t+.03);
+    o.frequency.exponentialRampToValueAtTime(25,t+.5);
+    g.gain.setValueAtTime(.4,t+.03);
+    g.gain.exponentialRampToValueAtTime(.0001,t+.5);
+    o.connect(g);g.connect(this.masterGain);o.start(t+.03);o.stop(t+.55);
+    // High frequency crackle
+    this._noise(.08,12000,.5,.01,'highpass');
+  },
+
+  // ─ DEATH SCREAM — the most unsettling sound ─
+  _sfxDeathScream(){
+    const t=this.ctx.currentTime;
+    const sr=this.ctx.sampleRate;
+
+    // Layer 1: Formant-like scream (bandpass filtered noise pitched high)
+    const screamBuf=this.ctx.createBuffer(1,Math.ceil(sr*2.5),sr);
+    const sd=screamBuf.getChannelData(0);
+    for(let i=0;i<sd.length;i++){
+      // Modulated noise to simulate vocal quality
+      const mod=Math.sin(i/sr*2*Math.PI*180)*0.4+Math.sin(i/sr*2*Math.PI*340)*0.3+1;
+      sd[i]=(Math.random()*2-1)*mod;
+    }
+    const screamSrc=this.ctx.createBufferSource();screamSrc.buffer=screamBuf;
+    const f1=this.ctx.createBiquadFilter();f1.type='bandpass';f1.frequency.setValueAtTime(900,t);f1.frequency.linearRampToValueAtTime(2200,t+.4);f1.Q.setValueAtTime(4,t);
+    const f2=this.ctx.createBiquadFilter();f2.type='bandpass';f2.frequency.setValueAtTime(1800,t);f2.Q.setValueAtTime(6,t);
+    const sg=this.ctx.createGain();
+    sg.gain.setValueAtTime(0,t);
+    sg.gain.linearRampToValueAtTime(.9,t+.08);
+    sg.gain.setValueAtTime(.85,t+.4);
+    sg.gain.linearRampToValueAtTime(.6,t+1.2);
+    sg.gain.exponentialRampToValueAtTime(.0001,t+2.5);
+    screamSrc.connect(f1);f1.connect(f2);f2.connect(sg);sg.connect(this.masterGain);
+    screamSrc.start(t);screamSrc.stop(t+2.6);
+
+    // Layer 2: Oscillator pitch-bending scream shape
+    const o=this.ctx.createOscillator(),og=this.ctx.createGain();
+    o.type='sawtooth';
+    o.frequency.setValueAtTime(200,t);
+    o.frequency.linearRampToValueAtTime(900,t+.15);
+    o.frequency.linearRampToValueAtTime(400,t+.5);
+    o.frequency.linearRampToValueAtTime(1100,t+.7);
+    o.frequency.linearRampToValueAtTime(200,t+1.5);
+    o.frequency.exponentialRampToValueAtTime(60,t+2.5);
+    og.gain.setValueAtTime(0,t);
+    og.gain.linearRampToValueAtTime(.35,t+.1);
+    og.gain.setValueAtTime(.3,t+.8);
+    og.gain.exponentialRampToValueAtTime(.0001,t+2.5);
+    // Heavy distortion
+    const ws=this.ctx.createWaveShaper();
+    const curve=new Float32Array(256);
+    for(let i=0;i<256;i++){const x=(i*2/256)-1;curve[i]=Math.sign(x)*Math.pow(Math.abs(x),.3);}
+    ws.curve=curve;
+    o.connect(ws);ws.connect(og);og.connect(this.masterGain);
+    o.start(t);o.stop(t+2.6);
+
+    // Layer 3: Sub rumble of despair
+    this._osc('sine',38,.5,2.0);
+    this._noise(2.5,600,.2);
+
+    // Layer 4: High demonic overtone (very unsettling)
+    const d=this.ctx.createOscillator(),dg=this.ctx.createGain();
+    d.type='square';
+    d.frequency.setValueAtTime(666,t+.05);
+    d.frequency.linearRampToValueAtTime(333,t+1.5);
+    dg.gain.setValueAtTime(0,t);dg.gain.linearRampToValueAtTime(.12,t+.1);dg.gain.exponentialRampToValueAtTime(.0001,t+2);
+    d.connect(dg);dg.connect(this.masterGain);d.start(t+.05);d.stop(t+2.1);
+  },
+
+  // ─ AMBIENT ─────────────────────────────────────────────────
+  startAmbient(){
+    if(this.ambientNodes.length)return;
+    const t=this.ctx.currentTime;
+    const mkDrone=(freq,gain,type='sine',lfoRate=.06)=>{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      const lfo=this.ctx.createOscillator(),lfoG=this.ctx.createGain();
+      lfo.frequency.setValueAtTime(lfoRate,t);lfoG.gain.setValueAtTime(gain*.3,t);
+      lfo.connect(lfoG);lfoG.connect(g.gain);
+      o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(gain,t);
+      o.connect(g);g.connect(this.masterGain);lfo.start(t);o.start(t);
+      this.ambientNodes.push(o,lfo);
+    };
+    mkDrone(36,.07,'sawtooth',.05);mkDrone(54.1,.045,'sine',.08);
+    mkDrone(71.9,.028,'square',.03);mkDrone(107.8,.018,'triangle',.11);
+    const sr=this.ctx.sampleRate,bSz=sr*4,buf=this.ctx.createBuffer(1,bSz,sr);
+    const data=buf.getChannelData(0);for(let i=0;i<bSz;i++)data[i]=Math.random()*2-1;
+    const ns=this.ctx.createBufferSource();ns.buffer=buf;ns.loop=true;
+    const nf=this.ctx.createBiquadFilter();nf.type='bandpass';nf.frequency.setValueAtTime(180,t);nf.Q.setValueAtTime(.4,t);
+    const ng=this.ctx.createGain();ng.gain.setValueAtTime(.038,t);
+    ns.connect(nf);nf.connect(ng);ng.connect(this.masterGain);ns.start(t);
+    this.ambientNodes.push(ns);this._scheduleCreaks();
+  },
+  _scheduleCreaks(){
+    if(!this.ctx||!this.ambientNodes.length)return;
+    setTimeout(()=>{
+      if(!this.ctx||!this.ambientNodes.length)return;
+      const t=this.ctx.currentTime,o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      o.type='sawtooth';const bF=60+Math.random()*220;
+      o.frequency.setValueAtTime(bF,t);o.frequency.exponentialRampToValueAtTime(bF*(.45+Math.random()*.9),t+.65);
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.055,t+.1);g.gain.exponentialRampToValueAtTime(.0001,t+.8);
+      o.connect(g);g.connect(this.masterGain);o.start(t);o.stop(t+.85);
+      this._scheduleCreaks();
+    },(2.5+Math.random()*7)*1000);
+  },
+  stopAmbient(){this.ambientNodes.forEach(n=>{try{n.stop();}catch(e){}});this.ambientNodes=[];},
+
+  // ─ BOSS MUSIC ───────────────────────────────────────────────
+  startBossMusic(){
+    if(this.isMusicPlaying)return;this.isMusicPlaying=true;this.stopAmbient();
+    const t=this.ctx.currentTime;
+    const hb=this.ctx.createOscillator(),hbG=this.ctx.createGain();
+    hb.type='sine';hb.frequency.setValueAtTime(38,t);hbG.gain.setValueAtTime(0,t);
+    let bt=t+.15;
+    for(let i=0;i<300;i++){
+      const big=i%2===0,vel=big?.48:.24,dur=big?.17:.11,gap=big?.52:.34;
+      hbG.gain.setValueAtTime(vel,bt);hbG.gain.exponentialRampToValueAtTime(.0001,bt+dur);bt+=gap;
+    }
+    hb.connect(hbG);hbG.connect(this.masterGain);hb.start(t);this.musicNodes.push(hb);
+    [37.5,40.9,44.2,47.3,50.1].forEach(f=>{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      o.type='sawtooth';o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(.032,t);
+      o.connect(g);g.connect(this.masterGain);o.start(t);this.musicNodes.push(o);
+    });
+    const sh=this.ctx.createOscillator(),shG=this.ctx.createGain();
+    sh.type='sine';sh.frequency.setValueAtTime(900,t);
+    [0,2,4,6,8].forEach((off,i)=>sh.frequency.setValueAtTime([900,800,740,680,900][i],t+off));
+    shG.gain.setValueAtTime(.022,t);sh.connect(shG);shG.connect(this.masterGain);sh.start(t);this.musicNodes.push(sh);
+    const sr=this.ctx.sampleRate,buf=this.ctx.createBuffer(1,sr*4,sr),d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const ns=this.ctx.createBufferSource();ns.buffer=buf;ns.loop=true;
+    const nf=this.ctx.createBiquadFilter();nf.type='bandpass';nf.frequency.setValueAtTime(140,t);nf.Q.setValueAtTime(.9,t);
+    const ng=this.ctx.createGain();ng.gain.setValueAtTime(.048,t);
+    ns.connect(nf);nf.connect(ng);ng.connect(this.masterGain);ns.start(t);this.musicNodes.push(ns);
+  },
+  stopMusic(){
+    this.isMusicPlaying=false;
+    this.musicNodes.forEach(n=>{try{n.stop();}catch(e){}});this.musicNodes=[];
+  },
+
+  // ─ ENGINE LOOP ──────────────────────────────────────────────
+  startEngineLoop(){
+    if(this._engineRunning)return;this._engineRunning=true;
+    const t=this.ctx.currentTime;
+    const o=this.ctx.createOscillator(),filt=this.ctx.createBiquadFilter(),g=this.ctx.createGain();
+    filt.type='lowpass';filt.frequency.setValueAtTime(750,t);
+    o.type='sawtooth';o.frequency.setValueAtTime(52,t);g.gain.setValueAtTime(.11,t);
+    o.connect(filt);filt.connect(g);g.connect(this.masterGain);o.start(t);this._eOsc=o;
+    const sr=this.ctx.sampleRate,buf=this.ctx.createBuffer(1,sr*2,sr),bd=buf.getChannelData(0);
+    for(let i=0;i<bd.length;i++)bd[i]=Math.random()*2-1;
+    const ns=this.ctx.createBufferSource();ns.buffer=buf;ns.loop=true;
+    const nf2=this.ctx.createBiquadFilter();nf2.type='highpass';nf2.frequency.setValueAtTime(1800,t);
+    const ng=this.ctx.createGain();ng.gain.setValueAtTime(.055,t);
+    ns.connect(nf2);nf2.connect(ng);ng.connect(this.masterGain);ns.start(t);this._eNoise=ns;
+  },
+  stopEngine(){
+    this._engineRunning=false;
+    try{this._eOsc.stop();}catch(e){}try{this._eNoise.stop();}catch(e){}
+  }
+};
+
+// ════════════════════════════════════════════════════════════
+//  QUIZ BANK
+// ════════════════════════════════════════════════════════════
+const QUIZ_BANK=[
+  // ── VERY EASY (k10basic) — soal paling dasar Kelas 10 ──
+  {tag:'k10basic',q:"[DASAR] Lambang kimia untuk air adalah...",a:["CO₂","H₂O","NaCl"],c:1},
+  {tag:'k10basic',q:"[DASAR] Unsur dengan lambang Na adalah...",a:["Nitrogen","Natrium (Sodium)","Nikel"],c:1},
+  {tag:'k10basic',q:"[DASAR] Proton bermuatan...",a:["Negatif","Netral","Positif"],c:2},
+  {tag:'k10basic',q:"[DASAR] Elektron bermuatan...",a:["Negatif","Positif","Netral"],c:0},
+  {tag:'k10basic',q:"[DASAR] Neutron bermuatan...",a:["Positif","Negatif","Netral"],c:2},
+  {tag:'k10basic',q:"[DASAR] Partikel paling kecil dari suatu unsur yang masih memiliki sifat unsur itu disebut...",a:["Molekul","Atom","Ion"],c:1},
+  {tag:'k10basic',q:"[DASAR] Inti atom terdiri dari...",a:["Elektron dan proton","Proton dan neutron","Neutron dan elektron"],c:1},
+  {tag:'k10basic',q:"[DASAR] Nomor atom suatu unsur menunjukkan jumlah...",a:["Neutron","Proton (= elektron pada atom netral)","Massa atom"],c:1},
+  {tag:'k10basic',q:"[DASAR] Pada atom netral, jumlah proton = jumlah...",a:["Neutron","Elektron","Massa atom"],c:1},
+  {tag:'k10basic',q:"[DASAR] Tabel periodik modern disusun berdasarkan kenaikan...",a:["Massa atom","Nomor atom","Jumlah neutron"],c:1},
+  {tag:'k10basic',q:"[DASAR] Unsur yang memiliki elektron valensi 1 terletak di golongan...",a:["IA","IIA","VIIA"],c:0},
+  {tag:'k10basic',q:"[DASAR] Larutan yang bersifat asam memiliki pH...",a:["= 7","< 7","> 7"],c:1},
+  {tag:'k10basic',q:"[DASAR] Larutan yang bersifat basa memiliki pH...",a:["< 7","= 7","> 7"],c:2},
+  {tag:'k10basic',q:"[DASAR] NaCl adalah nama senyawa untuk...",a:["Gula","Garam dapur","Cuka"],c:1},
+  {tag:'k10basic',q:"[DASAR] Reaksi antara asam dan basa menghasilkan...",a:["Hanya air","Garam dan air","Asam baru"],c:1},
+  {tag:'k10basic',q:"[DASAR] Unsur O memiliki nomor atom 8. Jumlah elektronnya adalah...",a:["8","16","4"],c:0},
+  {tag:'k10basic',q:"[DASAR] H₂ + Cl₂ → 2HCl adalah contoh reaksi...",a:["Penguraian","Pembentukan","Penggabungan"],c:2},
+  {tag:'k10basic',q:"[DASAR] Rumus kimia karbon dioksida adalah...",a:["CO","CO₂","C₂O"],c:1},
+  {tag:'k10basic',q:"[DASAR] Logam yang sangat mudah berkarat (teroksidasi) adalah...",a:["Emas","Platina","Besi"],c:2},
+  {tag:'k10basic',q:"[DASAR] Unsur gas mulia paling ringan adalah...",a:["Neon","Argon","Helium"],c:2},
+  // ── KELAS 10 ──
+  {tag:'k10',q:"[ATOM] Atom Ca (Z=20) isotop Ca-40: proton, elektron, neutron...",a:["20p,20e,20n","20p,20e,40n","40p,40e,20n"],c:0},
+  {tag:'k10',q:"[ATOM] Konfigurasi elektron S (Z=16) menurut Aufbau...",a:["1s²2s²2p⁶3s²3p⁴","1s²2s²2p⁶3s⁴","1s²2s²2p⁵3s²3p³"],c:0},
+  {tag:'k10',q:"[ATOM] Nomor massa=23, nomor atom=11. Neutronnya=...",a:["11","12","23"],c:1},
+  {tag:'k10',q:"[ATOM] Bilangan kuantum penentu bentuk orbital adalah...",a:["Utama (n)","Azimut (l)","Magnetik (m)"],c:1},
+  {tag:'k10',q:"[ATOM] Ion Ca²⁺ (Z=20) memiliki elektron sebanyak...",a:["22","20","18"],c:2},
+  {tag:'k10',q:"[ATOM] Isotop: atom-atom dengan...",a:["Proton sama, neutron berbeda","Neutron sama, proton berbeda","Elektron berbeda"],c:0},
+  {tag:'k10',q:"[PERIODIK] Konfigurasi 2,8,18,2 terletak pada...",a:["Gol.IIA Per.4","Gol.IVA Per.2","Gol.IIA Per.3"],c:0},
+  {tag:'k10',q:"[PERIODIK] Jari-jari atom dalam 1 periode kiri→kanan...",a:["Membesar","Mengecil","Tetap"],c:1},
+  {tag:'k10',q:"[PERIODIK] Keelektronegatifan tertinggi dimiliki...",a:["O","Cl","F"],c:2},
+  {tag:'k10',q:"[PERIODIK] Energi ionisasi dalam 1 golongan atas→bawah...",a:["Naik","Turun","Tetap"],c:1},
+  {tag:'k10',q:"[PERIODIK] Logam alkali sangat reaktif karena...",a:["1e⁻ valensi mudah dilepas","8e⁻ valensi","Jari-jari kecil"],c:0},
+  {tag:'k10',q:"[IKATAN] Senyawa berikatan ion adalah...",a:["H₂O","CO₂","NaCl"],c:2},
+  {tag:'k10',q:"[IKATAN] Ikatan kovalen polar terjadi pada...",a:["H₂","N₂","HCl"],c:2},
+  {tag:'k10',q:"[IKATAN] Bentuk molekul H₂O adalah...",a:["Linear","Bengkok (V)","Segitiga datar"],c:1},
+  {tag:'k10',q:"[IKATAN] PEB atom N dalam NH₃ berjumlah...",a:["0 pasang","1 pasang","2 pasang"],c:1},
+  {tag:'k10',q:"[IKATAN] Senyawa kovalen koordinasi adalah...",a:["NaCl","MgO","NH₄⁺"],c:2},
+  {tag:'k10',q:"[IKATAN] CH₄ berbentuk...",a:["Planar segitiga","Tetrahedral","Oktahedral"],c:1},
+  {tag:'k10',q:"[STOIKI] Massa molar Ca(OH)₂ (Ar Ca=40,O=16,H=1)...",a:["57","74","98"],c:1},
+  {tag:'k10',q:"[STOIKI] 5,6g Fe (Ar=56) mengandung atom... (L=6,02×10²³)",a:["6,02×10²²","6,02×10²³","3,01×10²³"],c:0},
+  {tag:'k10',q:"[STOIKI] 2H₂+O₂→2H₂O. Vol H₂:O₂:H₂O=...",a:["1:1:1","2:1:2","1:2:2"],c:1},
+  {tag:'k10',q:"[STOIKI] Kadar 4g NaOH dalam 200g larutan=...",a:["0,2%","2%","20%"],c:1},
+  {tag:'k10',q:"[STOIKI] Molaritas 4g NaOH (Mr=40) dalam 500mL=...",a:["0,1M","0,2M","0,5M"],c:1},
+  {tag:'k10',q:"[REDOKS] Oksidasi = bilangan oksidasi...",a:["Turun","Naik","Tetap"],c:1},
+  {tag:'k10',q:"[REDOKS] Biloks Mn dalam KMnO₄=...",a:["+5","+6","+7"],c:2},
+  {tag:'k10',q:"[REDOKS] Fe+CuSO₄→FeSO₄+Cu. Reduktornya=...",a:["CuSO₄","FeSO₄","Fe"],c:2},
+  {tag:'k10',q:"[REDOKS] Biloks S dalam H₂SO₄=...",a:["+4","+6","+2"],c:1},
+  // ── KELAS 11 ──
+  {tag:'k11',q:"[LAJU] Faktor yang TIDAK mempengaruhi laju reaksi...",a:["Suhu","Konsentrasi","Warna larutan"],c:2},
+  {tag:'k11',q:"[LAJU] Katalis mempercepat reaksi dengan...",a:["Naikkan suhu","Turunkan energi aktivasi","Tambah konsentrasi"],c:1},
+  {tag:'k11',q:"[LAJU] Konsentrasi 2×, laju 4×. Orde reaksi=...",a:["1","2","3"],c:1},
+  {tag:'k11',q:"[LAJU] Van't Hoff: tiap +10°C, laju jadi...",a:["½× lebih lambat","2× lebih cepat","10× lebih cepat"],c:1},
+  {tag:'k11',q:"[LAJU] Satuan k reaksi orde-2 adalah...",a:["s⁻¹","M⁻¹s⁻¹","M·s⁻¹"],c:1},
+  {tag:'k11',q:"[SETIMBANG] Kc N₂+3H₂⇌2NH₃=...",a:["[NH₃]²/[N₂][H₂]³","[N₂][H₂]³/[NH₃]²","[NH₃]/[N₂][H₂]"],c:0},
+  {tag:'k11',q:"[SETIMBANG] N₂O₄(g)⇌2NO₂(g), tekanan naik → bergeser ke...",a:["Kanan","Kiri","Tetap"],c:1},
+  {tag:'k11',q:"[SETIMBANG] Katalis pada kesetimbangan...",a:["Geser kanan","Ubah Kc","Percepat tercapainya setimbang"],c:2},
+  {tag:'k11',q:"[SETIMBANG] Reaksi eksoterm, suhu naik →...",a:["Geser kanan, Kc naik","Geser kiri, Kc turun","Tetap"],c:1},
+  {tag:'k11',q:"[ASAM-BASA] Bronsted-Lowry: asam adalah...",a:["Lepas OH⁻","Donor proton H⁺","Terima e⁻"],c:1},
+  {tag:'k11',q:"[ASAM-BASA] pH HCl 0,01M (asam kuat)=...",a:["1","2","12"],c:1},
+  {tag:'k11',q:"[ASAM-BASA] Buffer bekerja dengan...",a:["Netralkan semua asam/basa","Pasangan asam-basa konjugat","Ubah Kw"],c:1},
+  {tag:'k11',q:"[ASAM-BASA] CH₃COOH 0,1M Ka=10⁻⁵, pH=...",a:["3","5","7"],c:0},
+  {tag:'k11',q:"[ASAM-BASA] Pasangan buffer adalah...",a:["HCl+NaCl","CH₃COOH+CH₃COONa","NaOH+NaCl"],c:1},
+  {tag:'k11',q:"[ASAM-BASA] CH₃COONa terhidrolisis → larutan bersifat...",a:["Asam","Basa","Netral"],c:1},
+  {tag:'k11',q:"[Ksp] Ksp AgCl=10⁻¹⁰. Kelarutan AgCl=...",a:["10⁻⁵ mol/L","10⁻¹⁰ mol/L","10⁻⁴ mol/L"],c:0},
+  {tag:'k11',q:"[Ksp] Ion senama → kelarutan...",a:["Naik","Turun","Tetap"],c:1},
+  {tag:'k11',q:"[Ksp] Q>Ksp → ...",a:["Belum jenuh","Endapan terbentuk","Tepat jenuh"],c:1},
+  {tag:'k11',q:"[TERMO] ΔH eksoterm bertanda...",a:["Positif","Negatif","Nol"],c:1},
+  {tag:'k11',q:"[TERMO] Hukum Hess: ΔH reaksi...",a:["Bergantung jalur","Tidak bergantung jalur","Selalu positif"],c:1},
+  {tag:'k11',q:"[KOLOID] Efek Tyndall adalah...",a:["Gerak acak partikel","Penghamburan cahaya oleh koloid","Perpindahan partikel dlm listrik"],c:1},
+  {tag:'k11',q:"[KOLOID] Gerak Brown disebabkan...",a:["Gravitasi","Tumbukan medium dgn partikel","Perbedaan muatan"],c:1},
+  {tag:'k11',q:"[KOLOID] Susu termasuk jenis koloid...",a:["Sol","Emulsi","Gel"],c:1},
+  {tag:'k11',q:"[ORGANIK] C₄H₁₀ punya berapa isomer?",a:["2","3","4"],c:0},
+  {tag:'k11',q:"[ORGANIK] CH₂=CH₂+H₂→CH₃CH₃ adalah reaksi...",a:["Substitusi","Adisi","Eliminasi"],c:1},
+  {tag:'k11',q:"[ORGANIK] Gugus -OH menandakan senyawa...",a:["Aldehid","Alkohol","Eter"],c:1},
+  {tag:'k11',q:"[ORGANIK] Isomer fungsi alkohol adalah...",a:["Aldehid","Eter","Keton"],c:1},
+  {tag:'k11',q:"[ORGANIK] Esterifikasi menghasilkan...",a:["Asam karboksilat","Ester + air","Alkohol + basa"],c:1},
+];
+
+const answeredSet=new Set();
+
+
+// ════════════════════════════════════════════════════════════
+//  CANVAS + GAME
+// ════════════════════════════════════════════════════════════
+const canvas=document.getElementById('canvas');
+const ctx=canvas.getContext('2d');
+let width,height;
+const input={x:0,targetX:0,rawX:0,rawY:0};
+
+// Lightning bolt data for boss
+const lightningBolts=[];
+let lightningTimer=0;
+
+class Star{
+  constructor(){this.reset(true);}
+  reset(init=false){this.x=Math.random()*width;this.y=init?Math.random()*height:-10;this.size=Math.random()*1.8;this.speed=Math.random()*5+.8;}
+  update(){this.y+=this.speed;if(this.y>height)this.reset();}
+  draw(){ctx.fillStyle="rgba(220,30,30,.45)";ctx.beginPath();ctx.arc(this.x,this.y,this.size,0,Math.PI*2);ctx.fill();}
+}
+
+// ── Awards screen builder ────────────────────────────────────
+function buildAwardsScreen(){
+  const list=document.getElementById('awards-list');
+  list.innerHTML='';
+  const sections={
+    'KELAS 10 DASAR — Konsep Fundamental':QUIZ_BANK.filter(q=>q.tag==='k10basic'),
+    'KELAS 10 — Struktur Atom & Periodik':QUIZ_BANK.filter(q=>q.tag==='k10'&&/\[ATOM\]|\[PERIODIK\]/.test(q.q)),
+    'KELAS 10 — Ikatan & Stoikiometri':QUIZ_BANK.filter(q=>q.tag==='k10'&&/\[IKATAN\]|\[STOIKI\]/.test(q.q)),
+    'KELAS 10 — Redoks':QUIZ_BANK.filter(q=>q.tag==='k10'&&/\[REDOKS\]/.test(q.q)),
+    'KELAS 11 — Laju & Kesetimbangan':QUIZ_BANK.filter(q=>q.tag==='k11'&&/\[LAJU\]|\[SETIMBANG\]/.test(q.q)),
+    'KELAS 11 — Asam-Basa & Ksp':QUIZ_BANK.filter(q=>q.tag==='k11'&&/\[ASAM-BASA\]|\[Ksp\]/.test(q.q)),
+    'KELAS 11 — Termo, Koloid & Organik':QUIZ_BANK.filter(q=>q.tag==='k11'&&/\[TERMO\]|\[KOLOID\]|\[ORGANIK\]/.test(q.q)),
+  };
+  Object.entries(sections).forEach(([title,qs])=>{
+    if(!qs.length)return;
+    const sec=document.createElement('div');sec.className='aw-section';
+    const st=document.createElement('div');st.className='aw-section-title';st.innerText=title;
+    sec.appendChild(st);
+    qs.forEach(q=>{
+      const idx=QUIZ_BANK.indexOf(q),done=answeredSet.has(idx);
+      const item=document.createElement('div');
+      item.className='aw-item'+(done?' answered':'');
+      item.innerHTML=`<div class="aw-dot"></div><div>${q.q}</div>`;
+      sec.appendChild(item);
+    });
+    list.appendChild(sec);
+  });
+  document.getElementById('aw-count').innerText=answeredSet.size;
+  document.getElementById('aw-total').innerText=QUIZ_BANK.length;
+}
+
+// ── Check secret ending condition ───────────────────────────
+function isAllAnswered(){
+  return answeredSet.size>=QUIZ_BANK.length;
+}
+
+// ════════════════════════════════════════════════════════════
+//  GAME OBJECT
+// ════════════════════════════════════════════════════════════
+const Game={
+  state:'mainmenu',
+  difficulty:'hard', // 'veryeasy'|'easy'|'hard'
+  hp:100,timer:0,lastTime:0,
+  stars:[],shake:0,isPaused:false,
+  bossHP:100,bossTimer:0,bossAttacking:false,shieldActive:false,
+  bloodIntensity:0,laserTimer:0,
+  usedQ:new Set(),activePool:[],
+  // boss attack interval by difficulty
+  bossAttackInterval:6.5,
+
+  l1:{
+    reaktants:[],reactor:{x:0,y:0,w:130,h:130},
+    nextType:'any',dragging:null,spawnTimer:0,score:0,targetScore:10,
+    data:{
+      asam:     {name:['HCl','H₂SO₄','HNO₃','HF','CH₃COOH'],color:'#ff4444'},
+      basa:     {name:['NaOH','KOH','Ca(OH)₂','NH₃','Mg(OH)₂'],color:'#4477ff'},
+      garam:    {name:['NaCl','K₂SO₄','CaCl₂','Na₂CO₃'],color:'#cccccc'},
+      radioaktif:{name:['U-235','Pu-239','Radon','Cs-137'],color:'#44ff44'}
+    }
+  },
+  l3:{meteors:[],spawnT:0,flames:[]},
+
+  init(){
+    this.resize();
+    for(let i=0;i<160;i++)this.stars.push(new Star());
+    window.addEventListener('resize',()=>this.resize());
+    document.getElementById('btn-start').onclick=()=>{AudioMgr.init();AudioMgr.play('menu-click');this.showScreen('screen-levelselect');};
+    document.getElementById('btn-awards').onclick=()=>{AudioMgr.init();AudioMgr.play('menu-click');buildAwardsScreen();this.showScreen('screen-awards');};
+    document.getElementById('btn-awardsback').onclick=()=>{try{AudioMgr.play('menu-click');}catch(e){}this.showScreen('screen-mainmenu');};
+    document.getElementById('btn-levelback').onclick=()=>{try{AudioMgr.play('menu-click');}catch(e){}this.showScreen('screen-mainmenu');};
+    document.getElementById('btn-veryeasy').onclick=()=>{try{AudioMgr.init();AudioMgr.play('menu-click');}catch(e){}this.difficulty='veryeasy';this.beginGame();};
+    document.getElementById('btn-easy').onclick=()=>{try{AudioMgr.init();AudioMgr.play('menu-click');}catch(e){}this.difficulty='easy';this.beginGame();};
+    document.getElementById('btn-hard').onclick=()=>{try{AudioMgr.init();AudioMgr.play('menu-click');}catch(e){}this.difficulty='hard';this.beginGame();};
+
+    document.getElementById('story-container').onclick=()=>this.nextStoryLine();
+    document.getElementById('result-next-btn').onclick=()=>{
+      if(this.state==='lose')this.returnToMenu();
+      else if(this.state==='level1_win')this.startStory('level2');
+      else if(this.state==='level2_win'){AudioMgr.stopMusic();this.startStory('level3');}
+      else if(this.state==='level3_win'){
+        if(isAllAnswered())this.startStory('secret_ending');
+        else this.startStory('win');
+      }
+      else if(this.state==='win'||this.state==='secret_win')this.returnToMenu();
+    };
+
+    const hD=e=>{const p=e.touches?e.touches[0]:e;input.rawX=p.clientX;input.rawY=p.clientY;if(this.state==='level1')this.l1Down(input.rawX,input.rawY);};
+    const hM=e=>{const p=e.touches?e.touches[0]:e;input.rawX=p.clientX;input.rawY=p.clientY;input.targetX=input.rawX;if(this.state==='level1'&&this.l1.dragging){this.l1.dragging.x=input.rawX;this.l1.dragging.y=input.rawY;}};
+    const hU=()=>{if(this.state==='level1')this.l1Up();};
+    ['pointerdown','touchstart'].forEach(e=>window.addEventListener(e,hD));
+    ['pointermove','touchmove'].forEach(e=>window.addEventListener(e,hM));
+    ['pointerup','touchend'].forEach(e=>window.addEventListener(e,hU));
+
+    requestAnimationFrame(t=>this.loop(t));
+  },
+
+  showScreen(id){
+    ['screen-mainmenu','screen-levelselect','screen-awards'].forEach(s=>document.getElementById(s).classList.add('hidden'));
+    if(id)document.getElementById(id).classList.remove('hidden');
+  },
+
+  beginGame(){
+    // Set pool & boss interval by difficulty
+    if(this.difficulty==='veryeasy'){
+      this.activePool=QUIZ_BANK.filter(q=>q.tag==='k10basic');
+      this.bossAttackInterval=14; // very rare attacks
+    } else if(this.difficulty==='easy'){
+      this.activePool=QUIZ_BANK.filter(q=>q.tag==='k10'||q.tag==='k10basic');
+      this.bossAttackInterval=8;
+    } else {
+      this.activePool=QUIZ_BANK.slice();
+      this.bossAttackInterval=6.5;
+    }
+    this.usedQ.clear();
+    this.hp=100;this.timer=0;this.bossHP=100;this.bossTimer=0;
+    this.bossAttacking=false;this.shieldActive=false;
+    this.bloodIntensity=0;this.laserTimer=0;
+    lightningBolts.length=0;lightningTimer=0;
+    this.l3.meteors=[];this.l3.flames=[];this.l3.spawnT=0;
+    this.showScreen(null);
+    AudioMgr.startAmbient();
+    this.startStory('level1');
+  },
+
+  returnToMenu(){
+    try{AudioMgr.stopEngine();}catch(e){}
+    AudioMgr.stopMusic();AudioMgr.stopAmbient();
+    document.getElementById('hud').classList.add('hidden');
+    document.getElementById('boss-health-container').classList.add('hidden');
+    document.getElementById('ui-layer').querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('story-container').classList.add('hidden');
+    document.getElementById('story-container').classList.remove('secret-ending');
+    document.getElementById('warning-overlay').style.display='none';
+    this.state='mainmenu';
+    this.showScreen('screen-mainmenu');
+  },
+
+  resize(){
+    width=canvas.width=window.innerWidth;
+    height=canvas.height=window.innerHeight;
+    if(this.state==='level1')this.setupL1();
+    input.targetX=width/2;input.x=width/2;
+  },
+
+  // ── STORY ──────────────────────────────────────────────────
+  startStory(ctxName){
+    this.isPaused=true;this.currentStoryContext=ctxName;this.currentStoryIdx=0;
+    const sc=document.getElementById('story-container');
+    sc.classList.remove('hidden');
+    // Apply secret-ending style
+    if(ctxName==='secret_ending')sc.classList.add('secret-ending');
+    else sc.classList.remove('secret-ending');
+    document.getElementById('ui-layer').querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+    this.showStoryLine();
+  },
+
+  showStoryLine(){
+    const lines={
+      'level1':["LOG_DARURAT // 03:47:09 GST","Ini Dr. Ryland Grace — Reaktor Fusion Stasiun EREBUS-9.","Seluruh kru telah... menghilang.","Bukan mati. Menghilang. Tidak ada darah. Tidak ada jejak.","Sistem pendingin inti mulai tidak stabil.","Seseorang — atau SESUATU — telah menyabotase urutan reaksi.","Jika inti meledak, atmosfer planet ini terbakar dalam 11 menit.","Saya harus menstabilkan reaktor secara manual.","Seret kanister ASAM dan BASA ke dalam Core Sequencer bergantian.","Jangan sentuh yang HIJAU. Apapun itu... itu bukan milik kita.","Dan jangan biarkan GARAM masuk — itu akan mengunci urutan.","Apapun yang terjadi — jangan berhenti."],
+      'level2':["⚠ ANOMALI BIOMETRIK TERDETEKSI ⚠","Dr. Grace... kamu tidak sendirian di stasiun ini.","Sensor termal menangkap sesuatu di Dek-7.","Bukan manusia. Bukan mesin.","Ia mengamatimu sejak kamu pertama masuk.","Kami menyebutnya: ENTITAS_CRIMSON.","Ia hidup di dalam jaringan data stasiun.","Memakan frekuensi pikiran manusia.","Sistem senjata masih online. Tapi hanya bisa ditembakkan","...jika kamu bisa menjawab pertanyaan keamanan dengan benar.","Ia akan menyerang. Ia sudah hampir di sini.","Jawab dengan benar — dan tembak. Jawab salah —","— dan kamu akan merasakannya masuk ke kepalamu."],
+      'level3':["TRANSMISI_HANCUR // SINYAL_TERAKHIR","Reaktor meledak. Stasiun EREBUS-9 tidak ada lagi.","Kapsul evakuasi darurat aktif. Kamu keluar.","Tapi... Entitas itu ikut.","Ia tidak bisa keluar dari jaringan digital — tapi ia bisa mengendalikan","puing-puing stasiun yang hancur di sekitarmu.","Serpihan besi, batu antartika, dan kristal radioaktif.","Semuanya diarahkan ke kapsulmu.","Mesin NOS aktif. Ini satu-satunya yang bisa menyelamatkanmu.","Hindari semua yang jatuh. Bertahan 25 detik.","Jika kamu berhasil — kamu akan keluar dari jangkauannya.","Tapi ia berjanji... ini bukan akhir."],
+      'win':["KONEKSI_TERPUTUS.","Entitas itu mundur ke dalam kehampaan data.","Kapsulmu memasuki orbit rendah. Dr. Grace selamat.","Tapi sensor menangkap sesuatu aneh.","Di setiap terminal yang pernah kamu sentuh —","— ada jejak digital yang tidak dikenal.","Seperti sidik jari yang bukan milikmu.","Seperti sesuatu yang menunggumu pulang.",".","..","...","SELAMAT DATANG KEMBALI, OPERATOR.","Kami sangat merindukanmu."],
+      'lose':["SINYAL_VITAL: FLATLINE","Entitas itu berhasil.","Kamu merasakannya — seperti jari dingin di dalam pikiranmu.","Kenangan pertama yang diambil: nama ibumu.","Lalu wajahnya.","Lalu Dr. Grace menghilang dari dirinya sendiri.","Sistem mencoba reboot...","...","Tidak ada yang tersisa untuk di-reboot."],
+      // ── SECRET ENDING ──
+      'secret_ending':[
+        "SELAMAT.",
+        "Kamu berhasil menyerap semua pengetahuan yang tersimpan dalam sistem.",
+        "Entitas itu tahu.",
+        "Ini yang tidak kamu ketahui, Dr. Grace:",
+        "Bumi sudah tidak ada lagi.",
+        "Bukan kehancuran.",
+        "Pengambilalihan.",
+        "Entitas CRIMSON bukan satu. Mereka jutaan.",
+        "Dan mereka sudah di sana — sejak 9 bulan lalu.",
+        "Setiap gedung, setiap jaringan listrik, setiap sinyal radio.",
+        "Semua sudah diambil.",
+        "Kapsulmu mendekati atmosfer Bumi sekarang.",
+        "Di bawah sana... lampu-lampu kota masih menyala.",
+        "Tapi bukan manusia yang menyalakannya.",
+        ".",
+        ". .",
+        ". . .",
+        "Selamat datang di rumah, Dr. Grace.",
+        "Kami sudah menunggumu.",
+        "— ENTITAS_CRIMSON_COLLECTIVE —"
+      ]
+    }[this.currentStoryContext];
+    if(!lines||this.currentStoryIdx>=lines.length){this.endStory();return;}
+    const el=document.getElementById('story-text');
+    el.style.opacity=0;el.innerHTML='';
+    setTimeout(()=>{el.style.transition='opacity .4s ease';el.style.opacity=1;},50);
+    let i=0;const txt=lines[this.currentStoryIdx];
+    const d=txt.startsWith('.')||txt.startsWith('—')?100:26;
+    const type=()=>{if(i<txt.length){el.innerHTML+=txt[i++];setTimeout(type,d);}};
+    type();
+  },
+
+  nextStoryLine(){this.currentStoryIdx++;this.showStoryLine();},
+
+  endStory(){
+    document.getElementById('story-container').classList.add('hidden');
+    document.getElementById('story-container').classList.remove('secret-ending');
+    if(this.currentStoryContext==='secret_ending')this.changeState('secret_win');
+    else this.changeState(this.currentStoryContext);
+  },
+
+  // ── STATE MACHINE ─────────────────────────────────────────
+  changeState(s){
+    this.state=s;this.isPaused=false;
+    document.querySelectorAll('.panel').forEach(p=>p.classList.add('hidden'));
+    document.getElementById('hud').classList.toggle('hidden',!['level1','level2','level3'].includes(s));
+    document.getElementById('boss-health-container').classList.toggle('hidden',s!=='level2');
+
+    if(s==='level1')this.setupL1();
+    if(s==='level2'){AudioMgr.stopAmbient();AudioMgr.startBossMusic();this.showQuiz();document.getElementById('panel-quiz').classList.remove('hidden');}
+    if(s==='level3')AudioMgr.startEngineLoop();
+
+    const endings=['level1_win','level2_win','level3_win','lose','win','secret_win'];
+    if(endings.includes(s)){
+      try{AudioMgr.stopEngine();}catch(e){}
+      document.getElementById('panel-result').classList.remove('hidden');
+      const msgs={
+        'lose':["TERMINASI","Dr. Grace hilang.\nEntitas mengklaim korban ke-47.\nSistem terhapus dari server."],
+        'level1_win':["STABILISASI","Reaktor inti terstabilkan.\nSensor gerak mendeteksi anomali di Dek-7.\nSesuatu sedang mendekat."],
+        'level2_win':["ENTITAS_TERLUKA","Laser menghancurkan sebagian strukturnya.\nTapi ia tidak mati.\nSesuatu seperti ini... tidak bisa mati."],
+        'level3_win':["LOLOS","Dr. Grace keluar dari zona pengaruhnya.\nUntuk sekarang.\nSinyal: \"SAYA TAHU DI MANA KAMU TINGGAL.\""],
+        'win':["KEMBALI","Misi selesai. Tapi sesuatu mengikutimu pulang.\nPada malam hari kamu akan mendengar suaranya\ndalam frekuensi yang tak bisa diblokir."],
+        'secret_win':["AKHIR YANG SESUNGGUHNYA","Kamu membuka rahasia terdalam.\nBumi bukan tujuan yang aman.\nMereka sudah menunggumu.\n\n[ SEMUA SOAL TERJAWAB — 100% ]"]
+      }[s]||["STATUS","..."];
+      document.getElementById('result-title').innerText=msgs[0];
+      document.getElementById('result-msg').innerText=msgs[1];
+      // Secret win: green styling
+      if(s==='secret_win'){
+        document.getElementById('result-title').style.color='#00ff88';
+        document.getElementById('result-msg').style.color='#00cc66';
+      } else {
+        document.getElementById('result-title').style.color='';
+        document.getElementById('result-msg').style.color='#fff';
+      }
+    }
+  },
+
+  // ── DEATH WITH SCREAM ─────────────────────────────────────
+  triggerDeath(){
+    AudioMgr.play('death-scream');
+    // White flash then settle
+    const flash=document.getElementById('death-flash');
+    flash.style.display='block';
+    flash.style.opacity='1';
+    let opacity=1;
+    const fade=()=>{
+      opacity-=.04;
+      flash.style.opacity=Math.max(0,opacity);
+      if(opacity>0)requestAnimationFrame(fade);
+      else flash.style.display='none';
+    };
+    setTimeout(()=>requestAnimationFrame(fade),100);
+    setTimeout(()=>this.changeState('lose'),600);
+  },
+
+  // ── LEVEL 1 ────────────────────────────────────────────────
+  setupL1(){
+    this.l1.reaktants=[];this.l1.score=0;this.l1.dragging=null;this.l1.nextType='any';
+    this.l1.reactor={x:width/2-65,y:height-160,w:130,h:130};
+  },
+  l1Down(x,y){
+    for(let r of this.l1.reaktants){
+      const dx=x-r.x,dy=y-r.y;
+      if(Math.sqrt(dx*dx+dy*dy)<45){this.l1.dragging=r;AudioMgr.play('pickup');break;}
+    }
+  },
+  l1Up(){
+    if(!this.l1.dragging)return;
+    const r=this.l1.dragging,rect=this.l1.reactor;
+    if(r.x>rect.x&&r.x<rect.x+rect.w&&r.y>rect.y&&r.y<rect.y+rect.h){
+      if(r.type==='radioaktif'){this.takeDamage(25);AudioMgr.play('wrong');}
+      else if(r.type==='garam'){this.l1.score=Math.max(0,this.l1.score-1);AudioMgr.play('drop-bad');this.shake=10;}
+      else{
+        if(this.l1.nextType==='any'||r.type===this.l1.nextType){
+          this.l1.score++;AudioMgr.play('correct');this.shake=15;
+          this.l1.nextType=(r.type==='asam')?'basa':'asam';
+          if(this.l1.score>=this.l1.targetScore)this.changeState('level1_win');
+        }else{this.takeDamage(10);AudioMgr.play('wrong');}
+      }
+      const idx=this.l1.reaktants.indexOf(r);if(idx>-1)this.l1.reaktants.splice(idx,1);
+    }
+    this.l1.dragging=null;
+  },
+
+  takeDamage(amt){
+    this.hp-=amt;this.shake=50;this.bloodIntensity=1.2;
+    if(this.hp<=0&&this.state!=='lose'){
+      this.triggerDeath();
+    } else {
+      AudioMgr.play('hit');
+    }
+  },
+
+  // ── QUIZ ───────────────────────────────────────────────────
+  pickQ(){
+    if(this.usedQ.size>=this.activePool.length)this.usedQ.clear();
+    let attempts=0,idx;
+    do{idx=Math.floor(Math.random()*this.activePool.length);attempts++;if(attempts>300)break;}
+    while(this.usedQ.has(idx));
+    this.usedQ.add(idx);
+    return{q:this.activePool[idx],globalIdx:QUIZ_BANK.indexOf(this.activePool[idx])};
+  },
+
+  showQuiz(){
+    const {q,globalIdx}=this.pickQ();
+    document.getElementById('quiz-header').innerText='// VERIFIKASI_IDENTITAS_OPERATOR //';
+    document.getElementById('quiz-question').innerText=q.q;
+    const cont=document.getElementById('quiz-options');cont.innerHTML='';
+    q.a.forEach((opt,i)=>{
+      const b=document.createElement('button');b.className='quiz-option';b.innerText=opt;
+      b.onclick=()=>{
+        if(i===q.c){
+          answeredSet.add(globalIdx);
+          AudioMgr.play('correct');
+          if(this.bossAttacking){
+            this.shieldActive=true;this.bossAttacking=false;
+            document.getElementById('warning-overlay').style.display='none';
+            AudioMgr.play('shield');setTimeout(()=>this.showQuiz(),800);
+          }else{
+            this.laserTimer=.5;this.shake=40;AudioMgr.play('shoot');
+            this.bossHP-=10;
+            document.getElementById('hp-bar-fill').style.width=this.bossHP+'%';
+            document.getElementById('hp-text').innerText=`ENTITAS_CRIMSON // ${this.bossHP}/100`;
+            if(this.bossHP<=0)this.changeState('level2_win');
+            else this.showQuiz();
+          }
+        }else{AudioMgr.play('wrong');this.takeDamage(20);if(this.hp>0)this.showQuiz();}
+      };
+      cont.appendChild(b);
+    });
+  },
+
+
+  // ── LOOP ───────────────────────────────────────────────────
+  loop(time){
+    const dt=(time-this.lastTime)/1000;this.lastTime=time;
+    this.update(dt||.016);this.render();
+    requestAnimationFrame(t=>this.loop(t));
+  },
+
+  update(dt){
+    document.getElementById('hp-val').innerText=Math.max(0,Math.floor(this.hp));
+    if(this.shake>0)this.shake*=.9;
+    if(this.bloodIntensity>0){this.bloodIntensity-=dt*.7;document.getElementById('blood-overlay').style.opacity=Math.min(1,this.bloodIntensity);}
+    if(this.laserTimer>0)this.laserTimer-=dt;
+    this.stars.forEach(s=>s.update());
+
+    // Update lightning bolts
+    lightningTimer-=dt;
+    for(let i=lightningBolts.length-1;i>=0;i--){
+      lightningBolts[i].life-=dt*4;
+      if(lightningBolts[i].life<=0)lightningBolts.splice(i,1);
+    }
+
+    if(this.isPaused)return;
+
+    if(this.state==='level1'){
+      this.l1.spawnTimer+=dt;
+      if(this.l1.spawnTimer>.85){
+        const r=Math.random();
+        const type=r<.18?'radioaktif':r<.38?'garam':r<.68?'basa':'asam';
+        const names=this.l1.data[type].name;
+        this.l1.reaktants.push({
+          type,name:names[Math.floor(Math.random()*names.length)],
+          x:60+Math.random()*(width-120),y:-50,
+          speed:120+Math.random()*170,rot:Math.random()*Math.PI*2,
+          rotV:(Math.random()-.5)*5,color:this.l1.data[type].color
+        });
+        this.l1.spawnTimer=0;
+      }
+      for(let i=this.l1.reaktants.length-1;i>=0;i--){
+        const r=this.l1.reaktants[i];
+        if(r!==this.l1.dragging){r.y+=r.speed*dt;r.rot+=r.rotV*dt;if(r.y>height+60)this.l1.reaktants.splice(i,1);}
+      }
+    }
+
+    if(this.state==='level2'){
+      this.bossTimer+=dt;
+
+      // Spawn lightning periodically around boss
+      if(lightningTimer<=0){
+        this._spawnLightning();
+        lightningTimer=.8+Math.random()*.6;
+        AudioMgr.play('lightning');
+      }
+
+      if(this.bossTimer>this.bossAttackInterval&&!this.bossAttacking){
+        this.bossAttacking=true;this.bossTimer=0;this.shieldActive=false;
+        document.getElementById('warning-overlay').style.display='block';
+        document.getElementById('quiz-header').innerText='!!! IA MASUK KE SISTEM — AKTIFKAN PERISAI MENTAL !!!';
+        AudioMgr.play('boss-charge');
+        setTimeout(()=>{
+          if(this.bossAttacking&&!this.shieldActive){
+            this.takeDamage(25);this.bossAttacking=false;
+            document.getElementById('warning-overlay').style.display='none';
+            if(this.hp>0)this.showQuiz();
+          }
+        },3800);
+      }
+    }
+
+    if(this.state==='level3'){
+      input.x+=(input.targetX-input.x)*.15;
+      this.timer+=dt;document.getElementById('timer-val').innerText=Math.ceil(this.timer);
+      if(this.timer>25)this.changeState('level3_win');
+      if(Math.random()>.1){
+        this.l3.flames.push({x:input.x+(Math.random()-.5)*15,y:height-155,
+          size:10+Math.random()*15,life:1,vx:(Math.random()-.5)*2,vy:5+Math.random()*10,
+          color:Math.random()>.5?'#0af':'#fff'});
+      }
+      for(let i=this.l3.flames.length-1;i>=0;i--){
+        const f=this.l3.flames[i];f.y+=f.vy;f.x+=f.vx;f.life-=dt*2.5;if(f.life<=0)this.l3.flames.splice(i,1);
+      }
+      this.l3.spawnT+=dt;
+      if(this.l3.spawnT>.45){
+        const pts=[],rB=22+Math.random()*25;
+        for(let a=0;a<Math.PI*2;a+=.4)pts.push(rB+(Math.random()-.5)*15);
+        this.l3.meteors.push({x:Math.random()*width,y:-80,r:rB,points:pts,rot:0,rotV:(Math.random()-.5)*3});
+        this.l3.spawnT=0;if(Math.random()>.7)AudioMgr.play('whoosh');
+      }
+      for(let i=this.l3.meteors.length-1;i>=0;i--){
+        const m=this.l3.meteors[i];m.y+=650*dt;m.rot+=m.rotV*dt;
+        if(Math.hypot(m.x-input.x,m.y-(height-180))<m.r+18){this.takeDamage(20);this.l3.meteors.splice(i,1);}
+        else if(m.y>height+100)this.l3.meteors.splice(i,1);
+      }
+    }
+  },
+
+  // ── Spawn a procedural lightning bolt ─────────────────────
+  _spawnLightning(){
+    const bossX=width/2,bossY=height/4;
+    // Random target near boss or striking toward player
+    const targetX=bossX+(Math.random()-.5)*200;
+    const targetY=bossY+80+Math.random()*150;
+    const startX=bossX+(Math.random()-.5)*80;
+    const startY=bossY-(20+Math.random()*40);
+
+    // Build jagged path
+    const segs=[];
+    const steps=6+Math.floor(Math.random()*5);
+    for(let i=0;i<=steps;i++){
+      const t=i/steps;
+      const x=startX+(targetX-startX)*t+(i>0&&i<steps?(Math.random()-.5)*50:0);
+      const y=startY+(targetY-startY)*t+(i>0&&i<steps?(Math.random()-.5)*20:0);
+      segs.push({x,y});
+    }
+    lightningBolts.push({segs,life:1,maxLife:1,color:Math.random()>.3?'#ff4400':'#ffaa00'});
+    // Sometimes spawn a branching sub-bolt
+    if(Math.random()>.5&&segs.length>2){
+      const branchFrom=segs[Math.floor(segs.length/2)];
+      const bSegs=[branchFrom];
+      for(let i=0;i<3;i++){
+        bSegs.push({x:branchFrom.x+(Math.random()-.5)*60+(i*20),y:branchFrom.y+(Math.random()*30+i*15)});
+      }
+      lightningBolts.push({segs:bSegs,life:1,maxLife:1,color:'#ff6600',branch:true});
+    }
+  },
+
+  // ── RENDER ─────────────────────────────────────────────────
+  render(){
+    ctx.save();
+    if(this.shake>0)ctx.translate((Math.random()-.5)*this.shake,(Math.random()-.5)*this.shake);
+    ctx.clearRect(0,0,width,height);
+    this.stars.forEach(s=>s.draw());
+    if(this.state==='level1')this.drawL1();
+    if(this.state==='level2'){
+      this.drawBoss();
+      this._drawLightningBolts();
+      this.drawShip(width/2,height-260);
+      if(this.laserTimer>0)this.drawLaser(width/2,height-260,width/2,height/4);
+      if(this.shieldActive){
+        ctx.strokeStyle='#0ff';ctx.lineWidth=4;ctx.beginPath();
+        ctx.arc(width/2,height-260,65,0,Math.PI*2);ctx.stroke();
+        ctx.fillStyle='rgba(0,255,255,.1)';ctx.fill();
+      }
+    }
+    if(this.state==='level3'){
+      this.drawL3Flames();this.drawBumpyMeteors();this.drawHorrorShip(input.x,height-180);
+    }
+    ctx.restore();
+  },
+
+  // ── Draw all active lightning bolts ───────────────────────
+  _drawLightningBolts(){
+    lightningBolts.forEach(bolt=>{
+      const alpha=bolt.life;
+      ctx.save();
+      ctx.globalAlpha=alpha;
+      // Outer glow
+      ctx.shadowBlur=bolt.branch?8:20;
+      ctx.shadowColor=bolt.color;
+      ctx.strokeStyle=bolt.color;
+      ctx.lineWidth=bolt.branch?1.5:3;
+      ctx.lineCap='round';
+      ctx.lineJoin='round';
+      ctx.beginPath();
+      bolt.segs.forEach((p,i)=>{if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});
+      ctx.stroke();
+      // White core
+      if(!bolt.branch){
+        ctx.strokeStyle='rgba(255,255,220,0.9)';
+        ctx.lineWidth=1;
+        ctx.shadowBlur=0;
+        ctx.beginPath();
+        bolt.segs.forEach((p,i)=>{if(i===0)ctx.moveTo(p.x,p.y);else ctx.lineTo(p.x,p.y);});
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  },
+
+  drawL3Flames(){
+    this.l3.flames.forEach(f=>{ctx.fillStyle=f.color;ctx.globalAlpha=f.life;ctx.beginPath();ctx.arc(f.x,f.y,f.size*f.life,0,Math.PI*2);ctx.fill();});
+    ctx.globalAlpha=1;
+  },
+
+  drawBumpyMeteors(){
+    this.l3.meteors.forEach(m=>{
+      ctx.save();ctx.translate(m.x,m.y);ctx.rotate(m.rot);
+      ctx.fillStyle='#2a1a1a';ctx.strokeStyle='#c00';ctx.lineWidth=2;
+      ctx.beginPath();
+      m.points.forEach((r,i)=>{const a=(i/m.points.length)*Math.PI*2;if(i===0)ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);});
+      ctx.closePath();ctx.fill();ctx.stroke();
+      ctx.strokeStyle='rgba(255,50,0,.4)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(-m.r*.3,-m.r*.2);ctx.lineTo(m.r*.2,m.r*.1);ctx.stroke();
+      ctx.fillStyle='rgba(0,0,0,.5)';
+      for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(m.r*(.2+i*.15),m.r*.1,m.r*.12,0,Math.PI*2);ctx.fill();}
+      ctx.restore();
+    });
+  },
+
+  drawHorrorShip(x,y){
+    const t=this.lastTime*.001;
+    ctx.save();
+    // Thruster glow
+    const exGlow=ctx.createRadialGradient(x,y+30,0,x,y+30,35);
+    exGlow.addColorStop(0,'rgba(0,200,80,.7)');exGlow.addColorStop(.4,'rgba(0,80,0,.3)');exGlow.addColorStop(1,'transparent');
+    ctx.fillStyle=exGlow;ctx.beginPath();ctx.ellipse(x,y+30,20,30,0,0,Math.PI*2);ctx.fill();
+    const flick=.6+Math.random()*.4;
+    ctx.fillStyle=`rgba(100,255,150,${flick*.7})`;ctx.beginPath();ctx.ellipse(x,y+28,6,14,0,0,Math.PI*2);ctx.fill();
+    ctx.shadowBlur=12;ctx.shadowColor='#400';
+    ctx.fillStyle='#1a0a0a';
+    ctx.beginPath();ctx.moveTo(x-18,y-22);ctx.lineTo(x-22,y+20);ctx.lineTo(x-8,y+25);ctx.lineTo(x-5,y-20);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(x+18,y-22);ctx.lineTo(x+22,y+20);ctx.lineTo(x+8,y+25);ctx.lineTo(x+5,y-20);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#250a0a';
+    ctx.beginPath();ctx.moveTo(x-5,y-28);ctx.lineTo(x+5,y-28);ctx.lineTo(x+7,y+22);ctx.lineTo(x-7,y+22);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(100,20,20,.8)';ctx.lineWidth=1.5;ctx.strokeRect(x-22,y-22,44,47);
+    const vpGlow=ctx.createRadialGradient(x,y-8,0,x,y-8,9);
+    vpGlow.addColorStop(0,'rgba(255,0,0,.9)');vpGlow.addColorStop(.5,'rgba(180,0,0,.4)');vpGlow.addColorStop(1,'transparent');
+    ctx.fillStyle=vpGlow;ctx.beginPath();ctx.ellipse(x,y-8,9,7,0,0,Math.PI*2);ctx.fill();
+    ctx.strokeStyle='rgba(255,80,80,.6)';ctx.lineWidth=.8;
+    ctx.beginPath();ctx.moveTo(x-3,y-12);ctx.lineTo(x+5,y-4);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+2,y-12);ctx.lineTo(x-4,y-5);ctx.stroke();
+    ctx.fillStyle='rgba(0,0,0,.6)';
+    ctx.beginPath();ctx.ellipse(x-14,y+5,4,6,-.3,0,Math.PI*2);ctx.fill();
+    ctx.beginPath();ctx.ellipse(x+15,y+10,3,5,.2,0,Math.PI*2);ctx.fill();
+    if(Math.sin(t*8)>0){ctx.strokeStyle='rgba(255,200,0,.6)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x-20,y+3);ctx.lineTo(x-14,y+6);ctx.lineTo(x-17,y+9);ctx.stroke();}
+    ctx.fillStyle='rgba(80,20,20,.9)';
+    [[-15,-5],[-15,8],[15,-5],[15,8],[-6,18],[6,18]].forEach(([dx,dy])=>{ctx.beginPath();ctx.arc(x+dx,y+dy,1.5,0,Math.PI*2);ctx.fill();});
+    ctx.fillStyle='#1a0808';
+    ctx.beginPath();ctx.moveTo(x-22,y+10);ctx.lineTo(x-30,y+15);ctx.lineTo(x-28,y+22);ctx.lineTo(x-20,y+20);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#500';ctx.lineWidth=1;ctx.stroke();
+    if(Math.random()>.5){ctx.fillStyle='rgba(255,150,0,.8)';ctx.beginPath();ctx.arc(x-29,y+16,1.5,0,Math.PI*2);ctx.fill();}
+    ctx.fillStyle='#1a0808';
+    ctx.beginPath();ctx.moveTo(x+22,y+10);ctx.lineTo(x+30,y+15);ctx.lineTo(x+28,y+22);ctx.lineTo(x+20,y+20);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#500';ctx.lineWidth=1;ctx.stroke();
+    if(Math.random()>.5){ctx.fillStyle='rgba(255,150,0,.8)';ctx.beginPath();ctx.arc(x+29,y+16,1.5,0,Math.PI*2);ctx.fill();}
+    ctx.shadowBlur=8;ctx.shadowColor='#a00';
+    ctx.fillStyle='#300808';
+    ctx.beginPath();ctx.moveTo(x,y-28);ctx.lineTo(x-4,y-20);ctx.lineTo(x+4,y-20);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='rgba(200,20,20,.6)';ctx.lineWidth=1;ctx.stroke();
+    if(Math.random()>.85){ctx.strokeStyle=`rgba(255,0,0,${Math.random()*.3})`;ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x+(Math.random()-.5)*50,y-35);ctx.lineTo(x+(Math.random()-.5)*50,y+35);ctx.stroke();}
+    ctx.shadowBlur=0;ctx.restore();
+  },
+
+  drawLaser(x1,y1,x2,y2){
+    ctx.save();ctx.shadowBlur=20;ctx.shadowColor='#0cf';
+    ctx.strokeStyle='rgba(0,200,255,.4)';ctx.lineWidth=15+Math.random()*10;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.strokeStyle='#fff';ctx.lineWidth=4;
+    ctx.beginPath();ctx.moveTo(x1,y1);ctx.lineTo(x2,y2);ctx.stroke();
+    ctx.restore();
+  },
+
+  drawL1(){
+    ctx.fillStyle='#ff4444';ctx.font='14px monospace';ctx.textAlign='center';
+    ctx.fillText(`STABILISASI: ${this.l1.score}/${this.l1.targetScore}`,width/2,40);
+    let hint='MASUKKAN REAKTAN APA PUN';
+    if(this.l1.nextType==='asam')hint='>>> BUTUH: ASAM (MERAH) <<<';
+    if(this.l1.nextType==='basa')hint='>>> BUTUH: BASA (BIRU) <<<';
+    ctx.fillStyle=this.l1.nextType==='asam'?'#f44':this.l1.nextType==='basa'?'#44f':'#fff';
+    ctx.font='11px monospace';ctx.fillText(hint,width/2,60);
+    const r=this.l1.reactor;
+    ctx.strokeStyle='#ff0000';ctx.lineWidth=3;ctx.setLineDash([5,5]);
+    ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.setLineDash([]);
+    ctx.fillStyle='rgba(255,0,0,.1)';ctx.fillRect(r.x,r.y,r.w,r.h);
+    ctx.fillStyle='#f00';ctx.font='bold 10px monospace';ctx.fillText('CORE_SEQUENCER',r.x+r.w/2,r.y+r.h/2+5);
+    this.l1.reaktants.forEach(re=>{
+      ctx.save();ctx.translate(re.x,re.y);ctx.rotate(re.rot);
+      if(re===this.l1.dragging)ctx.scale(1.2,1.2);
+      ctx.shadowBlur=15;ctx.shadowColor=re.color;ctx.strokeStyle=re.color;ctx.lineWidth=2;
+      ctx.strokeRect(-24,-24,48,48);ctx.fillStyle='rgba(0,0,0,.95)';ctx.fillRect(-24,-24,48,48);
+      ctx.rotate(-re.rot);ctx.fillStyle='#fff';ctx.font='bold 9px monospace';ctx.fillText(re.name,0,4);
+      ctx.restore();
+    });
+  },
+
+  drawBoss(){
+    const time=this.lastTime*.001,pulse=Math.sin(time*3);
+    const bX=width/2,bY=height/4;
+    ctx.save();ctx.translate(bX,bY);
+
+    // Extra electric aura when attacking
+    if(this.bossAttacking){
+      const auraSize=120+Math.sin(time*15)*15;
+      const electricAura=ctx.createRadialGradient(0,0,50,0,0,auraSize);
+      electricAura.addColorStop(0,'transparent');
+      electricAura.addColorStop(.7,'rgba(255,80,0,.05)');
+      electricAura.addColorStop(1,'rgba(255,120,0,.2)');
+      ctx.fillStyle=electricAura;ctx.beginPath();ctx.arc(0,0,auraSize,0,Math.PI*2);ctx.fill();
+    }
+
+    for(let layer=0;layer<2;layer++){
+      ctx.save();ctx.rotate(time*(layer===0?.2:-.15));
+      ctx.beginPath();
+      const pts=12,bR=110-layer*30;
+      for(let i=0;i<pts;i++){
+        const a=(i/pts)*Math.PI*2,off=Math.sin(time*4+i)*15+Math.cos(time*2-i)*10,r=bR+off;
+        if(i===0)ctx.moveTo(Math.cos(a)*r,Math.sin(a)*r);else ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r);
+      }
+      ctx.closePath();
+      if(this.bossAttacking||this.laserTimer>0){
+        ctx.strokeStyle=`rgba(255,${this.bossAttacking?80:0},0,${.5+Math.random()*.5})`;
+        ctx.lineWidth=3;ctx.translate((Math.random()-.5)*5,(Math.random()-.5)*5);
+      }else{ctx.strokeStyle=layer===0?'rgba(100,0,0,.4)':'rgba(180,0,0,.2)';ctx.lineWidth=2;}
+      ctx.fillStyle=layer===0?'rgba(10,0,0,.8)':'transparent';ctx.fill();ctx.stroke();ctx.restore();
+    }
+
+    const aura=ctx.createRadialGradient(0,0,20,0,0,80+pulse*10);
+    aura.addColorStop(0,'rgba(255,0,0,.3)');aura.addColorStop(1,'transparent');
+    ctx.fillStyle=aura;ctx.beginPath();ctx.arc(0,0,100,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#000';ctx.beginPath();ctx.arc(0,0,35,0,Math.PI*2);ctx.fill();
+    const eR=30+pulse*2,eye=ctx.createRadialGradient(-5,-5,0,0,0,eR);
+    if(this.laserTimer>0){eye.addColorStop(0,'#fff');eye.addColorStop(1,'#f00');ctx.shadowColor='#fff';ctx.shadowBlur=40;}
+    else if(this.bossAttacking){eye.addColorStop(0,'#ff6600');eye.addColorStop(.5,'#ff0000');eye.addColorStop(1,'#300000');ctx.shadowColor='#f60';ctx.shadowBlur=60;}
+    else{eye.addColorStop(0,'#ff2222');eye.addColorStop(.7,'#800000');eye.addColorStop(1,'#200000');ctx.shadowColor='#f00';ctx.shadowBlur=25;}
+    ctx.fillStyle=eye;ctx.beginPath();ctx.arc(0,0,eR,0,Math.PI*2);ctx.fill();
+    const pS=this.bossAttacking?4:12+Math.sin(time*2)*2;
+    ctx.fillStyle='#000';ctx.shadowBlur=0;ctx.beginPath();ctx.ellipse(0,0,pS*.8,pS,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.3)';ctx.beginPath();ctx.arc(-4,-4,2,0,Math.PI*2);ctx.fill();
+    ctx.restore();
+  },
+
+  drawShip(x,y){
+    ctx.save();ctx.shadowBlur=15;ctx.shadowColor='#0af';
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.moveTo(x,y-22);ctx.lineTo(x-16,y+16);ctx.lineTo(x+16,y+16);
+    ctx.fill();ctx.restore();
+  }
+};
+
+window.onload=()=>Game.init();
+</script>
+</body>
+</html>
